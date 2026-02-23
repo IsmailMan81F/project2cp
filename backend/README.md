@@ -1,17 +1,9 @@
-# ESP32 Monitor — Backend
+# Backend
 
-Node.js + Express API. Connects to Home Assistant for sensor data and provides AI chat.
+Express API with Prisma and PostgreSQL. Syncs sensor data from Home Assistant every minute, stores readings, exposes REST endpoints and AI chat.
 
-## Setup
+**Tech:** Node.js, Express, Prisma, PostgreSQL, axios, node-cron, OpenAI.
 
-1. Copy `.env.example` to `.env` and fill in values.
-2. Create the database: `createdb esp32_monitor`
-3. Run migrations: `npm run db:migrate`
-4. Install and start: `npm install && npm run dev`
+**Setup:** Copy `.env.example` to `.env`, set `DATABASE_URL`. Create DB `esp32_monitor`, run `npm run db:migrate`, then `npm run dev`.
 
-## Endpoints
-
-- `GET /api/health` — Health check
-- `GET /api/sensor/latest` — Latest temperature reading
-- `GET /api/sensor/history?from=&to=&limit=` — Historical readings
-- `POST /api/chat` — AI chat (body: `{ "message": "..." }`)
+**Endpoints:** `GET /api/health` | `GET /api/sensor/latest` | `GET /api/sensor/history?from=&to=&limit=` | `POST /api/chat` (body: `{ "message": "..." }`)
