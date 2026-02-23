@@ -1,16 +1,72 @@
-# React + Vite
+# ESP32 Monitor — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based frontend for the ESP32 Monitor project. This application provides a landing page and dashboard for visualizing sensor data from an ESP32 device connected via Home Assistant, with planned AI-assisted insights.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** — UI framework
+- **Vite 7** — Build tool and dev server
+- **Tailwind CSS 4** — Utility-first styling
+- **React Router 7** — Client-side routing
 
-## React Compiler
+## Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+src/
+├── pages/
+│   ├── LandingPage.jsx    — Marketing landing page with hero and feature sections
+│   └── DashboardPage.jsx  — Dashboard view (sensor data and AI chat placeholders)
+├── App.jsx                — Root component and route configuration
+├── main.jsx               — Application entry point
+└── index.css              — Global styles and Tailwind imports
+```
 
-## Expanding the ESLint configuration
+## Implemented Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+**Landing Page**
+- Header with navigation to dashboard
+- Hero section with primary call-to-action
+- Feature overview (real-time data, AI assistant, history and graphs)
+- Footer
+
+**Dashboard**
+- Header with link back to landing page
+- Temperature section placeholder (ready for backend integration)
+- AI chat section placeholder (ready for backend integration)
+
+**Configuration**
+- Two routes: `/` (landing) and `/dashboard`
+- Tailwind CSS configured via PostCSS
+- Dark theme baseline (slate palette)
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Runs the development server at `http://localhost:5173`.
+
+## Build
+
+```bash
+npm run build
+```
+
+Outputs optimized static assets to the `dist/` directory.
+
+## Preview Production Build
+
+```bash
+npm run preview
+```
+
+Serves the production build locally for testing.
+
+## Planned Integration
+
+- Backend API for live sensor data (Home Assistant)
+- WebSocket for real-time updates
+- AI chat interface and API integration
+- Charts and historical data visualization
