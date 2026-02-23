@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import { fetchLatest, fetchHistory } from '../services/api.js'
 
-const REFRESH_INTERVAL_MS = 5000
+const REFRESH_INTERVAL_MS = 3000
 
 export default function DashboardPage() {
   const [latest, setLatest] = useState(null)
