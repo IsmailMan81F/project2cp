@@ -1,4 +1,3 @@
-import cron from 'node-cron'
 import { getEntityState } from '../services/homeAssistant.service.js'
 import { createReading } from '../services/sensorData.service.js'
 import { config } from '../config/index.js'
@@ -24,7 +23,9 @@ async function sync() {
   }
 }
 
+const SYNC_INTERVAL_MS = 15000
+
 export function startSyncJob() {
-  cron.schedule('* * * * *', sync)
   sync()
+  setInterval(sync, SYNC_INTERVAL_MS)
 }
