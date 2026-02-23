@@ -1,34 +1,41 @@
-import { Router } from 'express'
-import { getLatestReading, getHistory } from '../services/sensorData.service.js'
-import { config } from '../config/index.js'
+import { Router } from "express";
+import {
+  getLatestReading,
+  getHistory,
+} from "../services/sensorData.service.js";
+import { config } from "../config/index.js";
 
-const router = Router()
-const entityId = config.homeAssistant.sensorEntityId
+const router = Router();
+const entityId = config.homeAssistant.sensorEntityId;
 
-router.get('/latest', async (req, res, next) => {
+router.get("/latest", async (req, res, next) => {
   try {
-    const eid = req.query.entityId || entityId
-    const reading = await getLatestReading(eid)
+    const eid = req.query.entityId || entityId;
+    const reading = await getLatestReading(eid);
     if (!reading) {
-      return res.status(404).json({ error: 'No readings found' })
+      return res.status(404).json({ error: "No readings found" });
     }
-    res.json(reading)
+    res.json({
+      value: reading.value,
+      unit: reading.unit,
+      timestamp: reading.timestamp,
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
-})
+});
 
-router.get('/history', async (req, res, next) => {
+router.get("/history", async (req, res, next) => {
   try {
-    const eid = req.query.entityId || entityId
-    const from = req.query.from ? new Date(req.query.from) : undefined
-    const to = req.query.to ? new Date(req.query.to) : undefined
-    const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500)
-    const readings = await getHistory({ entityId: eid, from, to, limit })
-    res.json(readings)
+    const eid = req.query.entityId || entityId;
+    const from = req.query.from ? new Date(req.query.from) : undefined;
+    const to = req.query.to ? new Date(req.query.to) : undefined;
+    const limit = Math.min(parseInt(req.query.limit || "100", 10) || 100, 500);
+    const readings = await getHistory({ entityId: eid, from, to, limit });
+    res.json(readings);
   } catch (err) {
-    next(err)
+    next(err);
   }
-})
+});
 
-export default router
+export default router;
