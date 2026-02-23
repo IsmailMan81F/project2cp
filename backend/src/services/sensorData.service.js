@@ -18,21 +18,24 @@ export async function getLatestReading(entityId) {
  * @param {string} opts.entityId
  * @param {Date} [opts.from]
  * @param {Date} [opts.to]
- * @param {number} [opts.limit=100]
+ * @param {number} [opts.limit=100] - max records returned
+ * @param {number} [opts.rangeMinutes=60] - time window in minutes when from/to omitted
  * @returns {Promise<object[]>}
  */
-export async function getHistory({ entityId, from, to, limit = 100 }) {
+export async function getHistory({ entityId, from, to, limit = 100, rangeMinutes = 60 }) {
   const where = { entityId }
-  if (from || to) {
-    where.timestamp = {}
-    if (from) where.timestamp.gte = from
-    if (to) where.timestamp.lte = to
+  const toDate = to || new Date()
+  const fromDate = from || new Date(toDate.getTime() - rangeMinutes * 60 * 1000)
+  where.timestamp = {
+    gte: fromDate,
+    lte: toDate,
   }
-  return prisma.sensorReading.findMany({
+  const rows = await prisma.sensorReading.findMany({
     where,
-    orderBy: { timestamp: 'asc' },
+    orderBy: { timestamp: 'desc' },
     take: limit,
   })
+  return rows.reverse()
 }
 
 /**

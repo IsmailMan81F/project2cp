@@ -31,7 +31,8 @@ router.get("/history", async (req, res, next) => {
     const from = req.query.from ? new Date(req.query.from) : undefined;
     const to = req.query.to ? new Date(req.query.to) : undefined;
     const limit = Math.min(parseInt(req.query.limit || "100", 10) || 100, 500);
-    const readings = await getHistory({ entityId: eid, from, to, limit });
+    const rangeMinutes = parseInt(req.query.rangeMinutes || "60", 10) || 60;
+    const readings = await getHistory({ entityId: eid, from, to, limit, rangeMinutes });
     res.json(readings);
   } catch (err) {
     next(err);
