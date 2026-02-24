@@ -1,8 +1,16 @@
-import OpenAI from 'openai'
+import axios from 'axios'
 import { config } from '../config/index.js'
 import { getLatestReading } from './sensorData.service.js'
 
-const openai = config.openai.apiKey ? new OpenAI({ apiKey: config.openai.apiKey }) : null
+const openRouterClient = config.openRouter.apiKey
+  ? axios.create({
+      baseURL: 'https://openrouter.ai/api/v1',
+      headers: {
+        Authorization: `Bearer ${config.openRouter.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+  : null
 
 /**
  * Send a message to the AI and get a response
@@ -11,16 +19,16 @@ const openai = config.openai.apiKey ? new OpenAI({ apiKey: config.openai.apiKey 
  * @returns {Promise<string>}
  */
 export async function chat(userMessage, context = {}) {
-  if (!openai) {
-    return 'AI chat is not configured. Add OPENAI_API_KEY to your environment.'
+  if (!openRouterClient) {
+    return 'AI chat is not configured. Add OPENROUTER_API_KEY to your environment.'
   }
 
   const systemPrompt = `You are a helpful assistant for an ESP32 smart home monitoring dashboard. 
 You help users understand their sensor data and suggest actions. 
 Be concise and practical. ${context.latestTemp != null ? `Current temperature: ${context.latestTemp}°C` : ''}`
 
-  const { choices } = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+  const { data } = await openRouterClient.post('/chat/completions', {
+    model: config.openRouter.model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage },
@@ -28,7 +36,7 @@ Be concise and practical. ${context.latestTemp != null ? `Current temperature: $
     max_tokens: 500,
   })
 
-  return choices[0]?.message?.content || 'No response.'
+  return data.choices?.[0]?.message?.content?.trim() || 'No response.'
 }
 
 /**

@@ -9,14 +9,18 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { fetchLatest, fetchHistory } from '../services/api.js'
+import { fetchLatest, fetchHistory, sendChat } from '../services/api.js'
 
-const REFRESH_INTERVAL_MS = 3000
+const REFRESH_INTERVAL_MS = 25000
 
 export default function DashboardPage() {
   const [latest, setLatest] = useState(null)
   const [history, setHistory] = useState([])
   const [error, setError] = useState(null)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -42,6 +46,26 @@ export default function DashboardPage() {
     value: r.value,
     full: new Date(r.timestamp),
   })).sort((a, b) => a.full - b.full)
+
+  async function handleSendChat(e) {
+    e.preventDefault()
+    const text = chatInput.trim()
+    if (!text) return
+    const userMessage = { role: 'user', content: text }
+    setChatMessages((prev) => [...prev, userMessage])
+    setChatInput('')
+    setChatLoading(true)
+    setChatError(null)
+    try {
+      const { reply } = await sendChat(text)
+      const aiMessage = { role: 'assistant', content: reply }
+      setChatMessages((prev) => [...prev, aiMessage])
+    } catch (err) {
+      setChatError(err.message || 'Failed to send message')
+    } finally {
+      setChatLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -115,8 +139,46 @@ export default function DashboardPage() {
           <p className="text-slate-400 mb-4">
             Chat with the AI assistant for insights about your sensor data.
           </p>
-          <div className="p-4 bg-slate-900 rounded-lg min-h-[200px] flex items-center justify-center text-slate-500">
-            Chat interface coming soon...
+          <div className="p-4 bg-slate-900 rounded-lg min-h-[260px] flex flex-col rounded-lg">
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
+              {chatMessages.length === 0 && !chatError && (
+                <p className="text-slate-500 text-sm">
+                  Ask something like: &quot;Is my current temperature comfortable?&quot;
+                </p>
+              )}
+              {chatMessages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`px-3 py-2 rounded-lg text-sm max-w-[80%] ${
+                    m.role === 'user'
+                      ? 'bg-emerald-600 text-white ml-auto'
+                      : 'bg-slate-800 text-slate-100 mr-auto'
+                  }`}
+                >
+                  {m.content}
+                </div>
+              ))}
+              {chatError && (
+                <p className="text-red-400 text-sm">{chatError}</p>
+              )}
+            </div>
+            <form onSubmit={handleSendChat} className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask the assistant..."
+                className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                disabled={chatLoading}
+              />
+              <button
+                type="submit"
+                disabled={chatLoading}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium"
+              >
+                {chatLoading ? 'Sending...' : 'Send'}
+              </button>
+            </form>
           </div>
         </section>
       </main>

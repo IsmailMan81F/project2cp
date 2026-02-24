@@ -23,7 +23,7 @@ async function sync() {
   }
 }
 
-const SYNC_INTERVAL_MS = 3000
+const SYNC_INTERVAL_MS = 10000
 
 export function startSyncJob() {
   sync()

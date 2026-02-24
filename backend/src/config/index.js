@@ -9,7 +9,8 @@ export const config = {
     token: process.env.HOME_ASSISTANT_TOKEN,
     sensorEntityId: process.env.SENSOR_ENTITY_ID || 'sensor.esp32_temperature',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
+  openRouter: {
+    apiKey: process.env.OPENROUTER_API_KEY,
+    model: process.env.OPENROUTER_MODEL || 'openrouter/auto',
   },
 }

@@ -11,3 +11,13 @@ export async function fetchHistory(limit = 50) {
   if (!res.ok) throw new Error('Failed to fetch history')
   return res.json()
 }
+
+export async function sendChat(message) {
+  const res = await fetch(`${API_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  })
+  if (!res.ok) throw new Error('Failed to send message')
+  return res.json() // { reply }
+}
