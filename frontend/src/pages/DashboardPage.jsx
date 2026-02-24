@@ -174,9 +174,13 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={chatLoading}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium"
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium flex items-center justify-center min-w-[72px]"
               >
-                {chatLoading ? 'Sending...' : 'Send'}
+                {chatLoading ? (
+                  <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'Send'
+                )}
               </button>
             </form>
           </div>
