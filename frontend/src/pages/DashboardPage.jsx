@@ -23,7 +23,8 @@ export default function DashboardPage() {
   const [latestHumidity, setLatestHumidity] = useState(null)
   const [historyTemp, setHistoryTemp] = useState([])
   const [historyHumidity, setHistoryHumidity] = useState([])
-  const [error, setError] = useState(null)
+  const [errorTemp, setErrorTemp] = useState(null)
+  const [errorHumidity, setErrorHumidity] = useState(null)
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
@@ -34,7 +35,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        setError(null)
+        setErrorTemp(null)
+        setErrorHumidity(null)
         const [
           latestTempData,
           latestHumidityData,
@@ -51,7 +53,8 @@ export default function DashboardPage() {
         setHistoryTemp(historyTempData)
         setHistoryHumidity(historyHumidityData)
       } catch (err) {
-        setError(err.message)
+        setErrorTemp(err.message)
+        setErrorHumidity(err.message)
       }
     }
     load()
@@ -131,8 +134,8 @@ export default function DashboardPage() {
         <section className="mb-12 grid gap-6 md:grid-cols-2">
           <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
             <h3 className="font-semibold text-lg mb-4">Temperature</h3>
-            {error && (
-              <p className="text-red-400 mb-4">{error}</p>
+            {errorTemp && (
+              <p className="text-red-400 mb-4">{errorTemp}</p>
             )}
             {latestTemp ? (
               <>
@@ -150,13 +153,16 @@ export default function DashboardPage() {
                   every {REFRESH_INTERVAL_MS / 1000}s
                 </p>
               </>
-            ) : !error ? (
+            ) : !errorTemp ? (
               <p className="text-slate-400">Loading...</p>
             ) : null}
           </div>
 
           <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
             <h3 className="font-semibold text-lg mb-4">Humidity</h3>
+            {errorHumidity && (
+              <p className="text-red-400 mb-4">{errorHumidity}</p>
+            )}
             {latestHumidity ? (
               <>
                 <div className="flex items-baseline gap-2">
@@ -173,7 +179,7 @@ export default function DashboardPage() {
                   every {REFRESH_INTERVAL_MS / 1000}s
                 </p>
               </>
-            ) : !error ? (
+            ) : !errorHumidity ? (
               <p className="text-slate-400">Loading...</p>
             ) : null}
           </div>
