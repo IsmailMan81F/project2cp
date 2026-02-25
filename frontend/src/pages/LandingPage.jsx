@@ -6,12 +6,20 @@ export default function LandingPage() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
         <h1 className="text-xl font-semibold">ESP32 Monitor</h1>
-        <Link
-          to="/dashboard"
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition-colors"
-        >
-          Open Dashboard
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            to="/login"
+            className="px-4 py-2 border border-slate-600 hover:border-emerald-500 rounded-lg font-medium transition-colors"
+          >
+            Login
+          </Link>
+          <Link
+            to="/register"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition-colors"
+          >
+            Sign up
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
@@ -24,7 +32,7 @@ export default function LandingPage() {
           real time. Get AI-powered insights for your smart home.
         </p>
         <Link
-          to="/dashboard"
+          to="/login"
           className="inline-block px-8 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-lg transition-colors"
         >
           Get Started

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   LineChart,
   Line,
@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { fetchLatest, fetchHistory, sendChat } from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const REFRESH_INTERVAL_MS = 10000
 
@@ -27,6 +28,8 @@ export default function DashboardPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState(null)
+  const { logout, user } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function load() {
@@ -92,6 +95,11 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
@@ -102,7 +110,17 @@ export default function DashboardPage() {
           ESP32 Monitor
         </Link>
         <nav className="flex items-center gap-4">
-          <span className="text-slate-400">Dashboard</span>
+          {user && (
+            <span className="text-slate-400 text-sm hidden md:inline">
+              {user.displayName || user.email}
+            </span>
+          )}
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1.5 rounded-lg border border-slate-600 hover:border-emerald-500 text-sm"
+          >
+            Log out
+          </button>
         </nav>
       </header>
 
