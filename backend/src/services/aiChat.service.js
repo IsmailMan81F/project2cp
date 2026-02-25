@@ -27,7 +27,7 @@ export async function chat(userMessage, context = {}) {
 You help users understand their sensor data and suggest actions. 
 Be concise and practical. ${context.latestTemp != null ? `Current temperature: ${context.latestTemp}°C` : ''}`
 
-  const { data } = await .post('/chat/completions', {
+  const { data } = await openRouterClient.post('/chat/completions', {
     model: config.openRouter.model,
     messages: [
       { role: 'system', content: systemPrompt },
