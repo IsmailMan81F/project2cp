@@ -11,11 +11,17 @@ import {
 } from 'recharts'
 import { fetchLatest, fetchHistory, sendChat } from '../services/api.js'
 
-const REFRESH_INTERVAL_MS = 25000
+const REFRESH_INTERVAL_MS = 10000
+
+// Replace with your actual entity IDs
+const TEMPERATURE_ENTITY_ID = 'sensor.esp32_dht22_temperature'
+const HUMIDITY_ENTITY_ID = 'sensor.esp32_dht22_humidity'
 
 export default function DashboardPage() {
-  const [latest, setLatest] = useState(null)
-  const [history, setHistory] = useState([])
+  const [latestTemp, setLatestTemp] = useState(null)
+  const [latestHumidity, setLatestHumidity] = useState(null)
+  const [historyTemp, setHistoryTemp] = useState([])
+  const [historyHumidity, setHistoryHumidity] = useState([])
   const [error, setError] = useState(null)
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
@@ -26,12 +32,21 @@ export default function DashboardPage() {
     async function load() {
       try {
         setError(null)
-        const [latestData, historyData] = await Promise.all([
-          fetchLatest(),
-          fetchHistory(50),
+        const [
+          latestTempData,
+          latestHumidityData,
+          historyTempData,
+          historyHumidityData,
+        ] = await Promise.all([
+          fetchLatest(TEMPERATURE_ENTITY_ID),
+          fetchLatest(HUMIDITY_ENTITY_ID),
+          fetchHistory(TEMPERATURE_ENTITY_ID, 50),
+          fetchHistory(HUMIDITY_ENTITY_ID, 50),
         ])
-        setLatest(latestData)
-        setHistory(historyData)
+        setLatestTemp(latestTempData)
+        setLatestHumidity(latestHumidityData)
+        setHistoryTemp(historyTempData)
+        setHistoryHumidity(historyHumidityData)
       } catch (err) {
         setError(err.message)
       }
@@ -41,11 +56,21 @@ export default function DashboardPage() {
     return () => clearInterval(id)
   }, [])
 
-  const chartData = history.map((r) => ({
-    time: new Date(r.timestamp).toLocaleTimeString(),
-    value: r.value,
-    full: new Date(r.timestamp),
-  })).sort((a, b) => a.full - b.full)
+  const chartDataTemp = historyTemp
+    .map((r) => ({
+      time: new Date(r.timestamp).toLocaleTimeString(),
+      value: r.value,
+      full: new Date(r.timestamp),
+    }))
+    .sort((a, b) => a.full - b.full)
+
+  const chartDataHumidity = historyHumidity
+    .map((r) => ({
+      time: new Date(r.timestamp).toLocaleTimeString(),
+      value: r.value,
+      full: new Date(r.timestamp),
+    }))
+    .sort((a, b) => a.full - b.full)
 
   async function handleSendChat(e) {
     e.preventDefault()
@@ -84,54 +109,121 @@ export default function DashboardPage() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-2xl font-bold mb-8">Dashboard</h2>
 
-        <section className="mb-12 p-6 rounded-xl bg-slate-800/50 border border-slate-700">
-          <h3 className="font-semibold text-lg mb-4">Temperature</h3>
-          {error && (
-            <p className="text-red-400 mb-4">{error}</p>
-          )}
-          {latest ? (
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-bold text-emerald-400">
-                {latest.value.toFixed(1)}
-              </span>
-              <span className="text-2xl text-slate-400">{latest.unit}</span>
-            </div>
-          ) : !error ? (
-            <p className="text-slate-400">Loading...</p>
-          ) : null}
-          {latest && (
-            <p className="mt-2 text-sm text-slate-500">
-              Last updated: {new Date(latest.timestamp).toLocaleString()} · refreshes every {REFRESH_INTERVAL_MS / 1000}s
-            </p>
-          )}
+        {/* Current values */}
+        <section className="mb-12 grid gap-6 md:grid-cols-2">
+          <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
+            <h3 className="font-semibold text-lg mb-4">Temperature</h3>
+            {error && (
+              <p className="text-red-400 mb-4">{error}</p>
+            )}
+            {latestTemp ? (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold text-emerald-400">
+                    {latestTemp.value.toFixed(1)}
+                  </span>
+                  <span className="text-2xl text-slate-400">
+                    {latestTemp.unit}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Last updated:{' '}
+                  {new Date(latestTemp.timestamp).toLocaleString()} · refreshes
+                  every {REFRESH_INTERVAL_MS / 1000}s
+                </p>
+              </>
+            ) : !error ? (
+              <p className="text-slate-400">Loading...</p>
+            ) : null}
+          </div>
+
+          <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
+            <h3 className="font-semibold text-lg mb-4">Humidity</h3>
+            {latestHumidity ? (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold text-sky-400">
+                    {latestHumidity.value.toFixed(1)}
+                  </span>
+                  <span className="text-2xl text-slate-400">
+                    {latestHumidity.unit}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Last updated:{' '}
+                  {new Date(latestHumidity.timestamp).toLocaleString()} · refreshes
+                  every {REFRESH_INTERVAL_MS / 1000}s
+                </p>
+              </>
+            ) : !error ? (
+              <p className="text-slate-400">Loading...</p>
+            ) : null}
+          </div>
         </section>
 
-        <section className="mb-12 p-6 rounded-xl bg-slate-800/50 border border-slate-700">
-          <h3 className="font-semibold text-lg mb-4">History</h3>
-          {chartData.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}
-                    labelStyle={{ color: '#e2e8f0' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ fill: '#10b981', r: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-slate-500 py-8 text-center">No history yet</p>
-          )}
+        {/* History graphs */}
+        <section className="mb-12 grid gap-6 md:grid-cols-2">
+          <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
+            <h3 className="font-semibold text-lg mb-4">Temperature History</h3>
+            {chartDataTemp.length > 0 ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartDataTemp}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
+                    <YAxis stroke="#94a3b8" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                      }}
+                      labelStyle={{ color: '#e2e8f0' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ fill: '#10b981', r: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-slate-500 py-8 text-center">No history yet</p>
+            )}
+          </div>
+
+          <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
+            <h3 className="font-semibold text-lg mb-4">Humidity History</h3>
+            {chartDataHumidity.length > 0 ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartDataHumidity}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
+                    <YAxis stroke="#94a3b8" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                      }}
+                      labelStyle={{ color: '#e2e8f0' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#38bdf8"
+                      strokeWidth={2}
+                      dot={{ fill: '#38bdf8', r: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-slate-500 py-8 text-center">No history yet</p>
+            )}
+          </div>
         </section>
 
         <section className="p-6 rounded-xl bg-slate-800/50 border border-slate-700">
@@ -174,13 +266,9 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={chatLoading}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium flex items-center justify-center min-w-[72px]"
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium"
               >
-                {chatLoading ? (
-                  <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Send'
-                )}
+                {chatLoading ? 'Sending...' : 'Send'}
               </button>
             </form>
           </div>

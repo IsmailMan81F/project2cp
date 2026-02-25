@@ -3,14 +3,14 @@ import {
   getLatestReading,
   getHistory,
 } from "../services/sensorData.service.js";
-import { config } from "../config/index.js";
 
 const router = Router();
-const entityId = config.homeAssistant.sensorEntityId;
 
-router.get("/latest", async (req, res, next) => {
+// Dynamic endpoints: /api/sensor/:entityId/latest and /api/sensor/:entityId/history
+
+router.get("/:entityId/latest", async (req, res, next) => {
   try {
-    const eid = req.query.entityId || entityId;
+    const eid = req.params.entityId;
     const reading = await getLatestReading(eid);
     if (!reading) {
       return res.status(404).json({ error: "No readings found" });
@@ -25,9 +25,9 @@ router.get("/latest", async (req, res, next) => {
   }
 });
 
-router.get("/history", async (req, res, next) => {
+router.get("/:entityId/history", async (req, res, next) => {
   try {
-    const eid = req.query.entityId || entityId;
+    const eid = req.params.entityId;
     const from = req.query.from ? new Date(req.query.from) : undefined;
     const to = req.query.to ? new Date(req.query.to) : undefined;
     const limit = Math.min(parseInt(req.query.limit || "100", 10) || 100, 500);
