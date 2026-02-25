@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,6 +16,19 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login({ email, password })
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.message || 'Failed to login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleProviderLogin(providerFn) {
+    setError(null)
+    setLoading(true)
+    try {
+      await providerFn()
       navigate('/dashboard')
     } catch (err) {
       setError(err.message || 'Failed to login')
@@ -64,6 +77,21 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="mt-6 space-y-2">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => handleProviderLogin(loginWithGoogle)}
+            className="w-full px-4 py-2 rounded-lg bg-slate-900 border border-slate-600 hover:border-emerald-500 disabled:opacity-60 text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
+              <span className="text-xs font-bold text-[#4285F4]">G</span>
+            </span>
+            <span>Continue with Google</span>
+          </button>
+        </div>
+
         <p className="mt-4 text-sm text-slate-400 text-center">
           No account?{' '}
           <Link to="/register" className="text-emerald-400 hover:underline">
