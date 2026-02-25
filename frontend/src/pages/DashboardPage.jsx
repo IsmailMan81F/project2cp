@@ -231,7 +231,7 @@ export default function DashboardPage() {
           <p className="text-slate-400 mb-4">
             Chat with the AI assistant for insights about your sensor data.
           </p>
-          <div className="p-4 bg-slate-900 rounded-lg min-h-[260px] flex flex-col rounded-lg">
+          <div className="p-4 bg-slate-900 min-h-[260px] flex flex-col rounded-lg">
             <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
               {chatMessages.length === 0 && !chatError && (
                 <p className="text-slate-500 text-sm">
