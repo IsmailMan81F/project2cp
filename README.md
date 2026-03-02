@@ -1,4 +1,4 @@
-# ESP32 Monitor  
+# ESP32 Monitor
 
 Full-stack app: ESP32 sensors via Home Assistant, temperature display, AI assistant. Frontend (React, Vite, Tailwind). Backend (Express, Prisma, PostgreSQL). Landing page, dashboard, sensor API, chat API.
 
