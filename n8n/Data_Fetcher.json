@@ -1,0 +1,109 @@
+{
+  "name": "Data_Fetcher",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      // Look here! We are sending it straight to your local Home Assistant IP and port (8123)\n      url: \"http://10.86.179.72:8123/api/states\",\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -112
+      ],
+      "id": "ebce615d-c9f3-4cf2-a528-fc323337c9af",
+      "name": "API url"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n        \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkNWE1ZDVjMzQyNTE0MzE4YjI0MTI1NjZiOTNlOWEzNiIsImlhdCI6MTc3MTkzMDY5MCwiZXhwIjoyMDg3MjkwNjkwfQ.obmGhZBspOzi-72YyCCsca-qiL8w5sNgPnHnJJmZL94\",\n        \"Content-Type\": \"application/json\"\n      }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        64,
+        -112
+      ],
+      "id": "62166d6c-202d-46b6-b706-839905c212e5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        -112
+      ],
+      "id": "38a326f9-6d4b-4389-b7a0-b93a7c760046",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entities = items.map(i => i.json);\n\nconst byId = (id) => entities.find(e => e.entity_id === id);\n\nconst toBool = (v) => (v === 'on' ? true : v === 'off' ? false : null);\nconst toNum = (v) => {\n  if (v === null || v === undefined || v === 'unknown' || v === 'unavailable' || v === '') return null;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n};\nconst cleanTextState = (v) => {\n  if (v === null || v === undefined) return null;\n  const s = String(v).trim();\n  if (!s || s === 'unknown' || s === 'unavailable') return null;\n  return s;\n};\nconst toIsoNoMs = (s) => {\n  if (!s || s === 'unknown' || s === 'unavailable') return null;\n  const normalized = String(s).replace(' ', 'T');\n  const d = new Date(normalized);\n  if (isNaN(d.getTime())) return null;\n  return d.toISOString().replace(/\\.\\d{3}Z$/, '');\n};\nconst hhmmFromDate = (d) =>\n  `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;\n\nconst now = new Date();\nconst isFuture = (dt) => dt && new Date(dt) > now;\n\n// -------- Extract entities --------\nconst zoneHome = byId('zone.home');\nconst priorityMode = byId('input_select.priority_mode');\nconst cropType = byId('input_text.crop_type');\nconst growthStage = byId('input_text.growth_stage');\n\nconst soil = byId('input_number.soit_moisture') || byId('input_number.soil_moisture');\nconst temp = byId('input_number.temperature');\nconst airHum = byId('input_number.air_humidity');\nconst lumi = byId('input_number.luminosity');\n\nconst actuatorsRaw = [\n  {\n    name: 'pump',\n    state: byId('input_boolean.pump_physical_state'),\n    manual_override: byId('input_boolean.pump_manual_override'),\n    delay: byId('input_datetime.pump_excecute_at'),\n    timer: byId('input_datetime.pump_excecute_until'),\n  },\n  {\n    name: 'fan',\n    state: byId('input_boolean.fan_physical_state'),\n    manual_override: byId('input_boolean.fan_manual_override'),\n    delay: byId('input_datetime.fan_excecute_at'),\n    timer: byId('input_datetime.fan_excecute_until'),\n  }\n];\n\nconst actuators = {};\n\nfor (const act of actuatorsRaw) {\n  const physicalState = cleanTextState(act.state?.state);\n  const manualOverride = toBool(act.manual_override?.state);\n  const delayAt = toIsoNoMs(act.delay?.state);\n  const timerUntil = toIsoNoMs(act.timer?.state);\n\n  const delayActive = isFuture(delayAt);\n\n  // Determine skipped\n  const skipped = physicalState === 'on' || delayActive || manualOverride;\n\n  // Determine classification\n  let classification = '';\n  if (manualOverride) classification = 'MANUAL';\n  else if (physicalState === 'on') classification = 'EXECUTING';\n  else if (physicalState === 'off' && delayActive) classification = 'WAITING';\n  else if (physicalState === 'off' && !delayActive) classification = 'FREE';\n\n  // Determine timer.active\n  let timerActive = false;\n  if (physicalState === 'on') timerActive = true;\n  else if (physicalState === 'off' && delayActive) timerActive = true;\n  else timerActive = false;\n\n  actuators[act.name] = {\n    entity_id: act.state?.entity_id ?? null,\n    physical_state: physicalState,\n    classification,\n    skipped,\n    manual_override: manualOverride,\n    timer: {\n      active: timerActive,\n      duration_minutes: null,\n      execute_until: timerUntil\n    },\n    delay: {\n      active: delayActive,\n      execute_at: delayAt\n    }\n  };\n}\n\n// -------- Build output --------\nconst result = {\n  meta: {\n    run_id: `${Math.random().toString(16).slice(2, 8)}-${Math.random().toString(16).slice(2, 14)}`,\n    triggered_at: now.toISOString().replace(/\\.\\d{3}Z$/, ''),\n    mode: cleanTextState(priorityMode?.state)\n  },\n  location: {\n    latitude: zoneHome?.attributes?.latitude ?? null,\n    longitude: zoneHome?.attributes?.longitude ?? null,\n    timezone: 'Africa/Algiers'\n  },\n  crop: {\n    type: cleanTextState(cropType?.state),\n    growth_stage: cleanTextState(growthStage?.state)\n  },\n  sensors: {\n    soil_moisture: toNum(soil?.state),\n    temperature: toNum(temp?.state),\n    air_humidity: toNum(airHum?.state),\n    luminosity: toNum(lumi?.state),\n    time_of_day: hhmmFromDate(now)\n  },\n  actuators,\n  weather: null,\n  history: null,\n  extra: {\n    recommendations: [],\n    warnings: []\n  }\n};\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        -112
+      ],
+      "id": "5445c823-87ad-4fa3-ad45-c3cfde863373",
+      "name": "Payload_Builder"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "API url": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Payload_Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "API url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a6a8fe20-5be3-433b-b36b-43547c8f99b5",
+  "meta": {
+    "instanceId": "8e5c8fd21874688ce1f848826b25f0ce0d6a0069a8639656b15e2fd79d0bd983"
+  },
+  "id": "z0ZKRqbf4yyPbDP4",
+  "tags": []
+}

@@ -3,7 +3,7 @@ import { chatWithContext } from '../services/aiChat.service.js'
 import { config } from '../config/index.js'
 
 const router = Router()
-const entityId = config.homeAssistant.sensorEntityId
+const entityIds = config.homeAssistant.sensorEntityIds
 
 router.post('/', async (req, res, next) => {
   try {
@@ -11,10 +11,11 @@ router.post('/', async (req, res, next) => {
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'message is required' })
     }
-    const reply = await chatWithContext(message.trim(), entityId)
+    const reply = await chatWithContext(message.trim(), entityIds)
     res.json({ reply })
   } catch (err) {
     next(err)
+    console.log(err)
   }
 })
 

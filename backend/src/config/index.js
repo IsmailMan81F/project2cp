@@ -1,9 +1,12 @@
 import "dotenv/config";
 
+const corsOrigins = JSON.parse(process.env.CORS_ORIGIN);
+
+
 export const config = {
   port: parseInt(process.env.PORT || "3001", 10),
   databaseUrl: process.env.DATABASE_URL,
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  corsOrigin: corsOrigins,
   homeAssistant: {
     url: process.env.HOME_ASSISTANT_URL || "http://localhost:8123",
     token: process.env.HOME_ASSISTANT_TOKEN,
