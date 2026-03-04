@@ -1,0 +1,233 @@
+{
+  "name": "Decision_flow",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0sKMcOI_SiAj3PC77_uKH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0sKMcOI_SiAj3PC77_uKH",
+          "cachedResultName": "Preliminary_decisions"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d8b446b0-6ebf-44cc-b106-7bc74c2793f5",
+      "name": "Call 'Preliminary_decisions'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "V8Gvhdac7yZ0YFIfH3ADB",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/V8Gvhdac7yZ0YFIfH3ADB",
+          "cachedResultName": "weather"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e3f4ab01-99d8-4220-acc4-e9ab8bd05acb",
+      "name": "Call 'weather'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "mpyP_cLIVH9JF_pwPIKR0",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/mpyP_cLIVH9JF_pwPIKR0",
+          "cachedResultName": "Final_decisions"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "968e5b9e-66fc-466c-8891-ac2d27c3b4c2",
+      "name": "Call 'Final_decisions'"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -592,
+        0
+      ],
+      "id": "c873126a-b4be-4c2b-89da-26994011852e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n        \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZjM2OThjNjY1YTM0ZTdkYWIzMWYyMWQ4MDE3ODczYiIsImlhdCI6MTc3MDQ3MDc2NywiZXhwIjoyMDg1ODMwNzY3fQ.NXpSlVNahovCWCBvNPF47Jls7nvtjztTniADpKh0PgE\",\n        \"Content-Type\": \"application/json\"\n      }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "c52a29c1-2f73-4c94-9ff9-d5e4d4cbab2e",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      // Look here! We are sending it straight to your local Home Assistant IP and port (8123)\n      url: \"http://10.234.113.183:8123/api/states\",\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        0
+      ],
+      "id": "ef627aa5-500f-423d-b20c-e7bdab73cda9",
+      "name": "API url"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node\n// Reads ALL incoming items (each Home Assistant entity as one item)\n// Returns ONE item with json object in the required structure\n\nconst entities = items.map(i => i.json);\n\n// -------- Helpers --------\nconst byId = (id) => entities.find(e => e.entity_id === id);\n\nconst toBool = (v) => (v === 'on' ? true : v === 'off' ? false : null);\n\nconst toNum = (v) => {\n  if (v === null || v === undefined || v === 'unknown' || v === 'unavailable' || v === '') return null;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n};\n\nconst cleanTextState = (v) => {\n  if (v === null || v === undefined) return null;\n  const s = String(v).trim();\n  if (!s || s === 'unknown' || s === 'unavailable') return null;\n  return s;\n};\n\nconst toIsoNoMs = (s) => {\n  if (!s || s === 'unknown' || s === 'unavailable') return null;\n  // Handles \"2026-03-02 00:00:00\" and ISO strings\n  const normalized = String(s).replace(' ', 'T');\n  const d = new Date(normalized);\n  if (isNaN(d.getTime())) return null;\n  return d.toISOString().replace(/\\.\\d{3}Z$/, '');\n};\n\nconst hhmmFromDate = (d) =>\n  `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;\n\n// -------- Extract entities --------\nconst zoneHome = byId('zone.home');\nconst priorityMode = byId('input_select.priority_mode');\n\nconst cropType = byId('input_text.crop_type');\nconst growthStage = byId('input_text.growth_stage');\n\nconst soil = byId('input_number.soit_moisture') || byId('input_number.soil_moisture'); // typo-safe\nconst temp = byId('input_number.temperature');\nconst airHum = byId('input_number.air_humidity');\nconst lumi = byId('input_number.luminosity');\n\nconst pumpState = byId('input_boolean.pump_physical_state');\nconst fanState = byId('input_boolean.fan_physical_state');\nconst pumpOverride = byId('input_boolean.pump_manual_override');\nconst fanOverride = byId('input_boolean.fan_manual_override');\n\nconst pumpExecAt = byId('input_datetime.pump_excecute_at');\nconst pumpExecUntil = byId('input_datetime.pump_excecute_until');\nconst fanExecAt = byId('input_datetime.fan_excecute_at');\nconst fanExecUntil = byId('input_datetime.fan_excecute_until');\n\nconst now = new Date();\n\n// -------- Build output --------\nconst result = {\n  meta: {\n    run_id: `${Math.random().toString(16).slice(2, 8)}-${Math.random().toString(16).slice(2, 14)}`,\n    triggered_at: now.toISOString().replace(/\\.\\d{3}Z$/, ''),\n    mode: cleanTextState(priorityMode?.state)\n  },\n  location: {\n    latitude: zoneHome?.attributes?.latitude ?? null,\n    longitude: zoneHome?.attributes?.longitude ?? null,\n    timezone: 'Africa/Algiers'\n  },\n  crop: {\n    type: cleanTextState(cropType?.state),\n    growth_stage: cleanTextState(growthStage?.state)\n  },\n  sensors: {\n    soil_moisture: toNum(soil?.state),\n    temperature: toNum(temp?.state),\n    air_humidity: toNum(airHum?.state),\n    luminosity: toNum(lumi?.state),\n    time_of_day: hhmmFromDate(now)\n  },\n  actuators: {\n    pump: {\n      // ✅ fixed: actual entity id\n      entity_id: pumpState?.entity_id ?? null,\n      physical_state: cleanTextState(pumpState?.state),\n      classification: \"\",\n      skipped: false,\n      manual_override: toBool(pumpOverride?.state),\n      timer: {\n        active: !!toIsoNoMs(pumpExecUntil?.state),\n        duration_minutes: null,\n        execute_until: toIsoNoMs(pumpExecUntil?.state)\n      },\n      delay: {\n        active: !!toIsoNoMs(pumpExecAt?.state),\n        execute_at: toIsoNoMs(pumpExecAt?.state)\n      }\n    },\n    fan: {\n      // ✅ fixed: actual entity id\n      entity_id: fanState?.entity_id ?? null,\n      physical_state: cleanTextState(fanState?.state),\n      classification: \"\",\n      skipped: null,\n      manual_override: toBool(fanOverride?.state),\n      timer: {\n        active: !!toIsoNoMs(fanExecUntil?.state),\n        duration_minutes: null,\n        execute_until: toIsoNoMs(fanExecUntil?.state)\n      },\n      delay: {\n        active: !!toIsoNoMs(fanExecAt?.state),\n        execute_at: toIsoNoMs(fanExecAt?.state)\n      }\n    }\n  },\n  weather: null,\n  history: null,\n  extra: {\n    recommendations: [],\n    warnings: []\n  }\n};\n\n// n8n requires each item's json to be an object\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        0
+      ],
+      "id": "91c123de-b21e-46f4-a194-be7d8e5e7c97",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Call 'Preliminary_decisions'": {
+      "main": [
+        [
+          {
+            "node": "Call 'weather'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'weather'": {
+      "main": [
+        [
+          {
+            "node": "Call 'Final_decisions'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "API url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API url": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Call 'Preliminary_decisions'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "61ad6abd-e9bf-45cb-aead-95b9b32daf25",
+  "meta": {
+    "instanceId": "a24db0cf1df907f1ed13a32c1a27ce3caeab54aacf2cab3cd091ef5400bdb440"
+  },
+  "id": "7bg3F0RojbXd2IItrTrbZ",
+  "tags": []
+}

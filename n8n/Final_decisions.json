@@ -1,0 +1,185 @@
+{
+  "name": "Final_decisions",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bf56b86f-7e68-4e60-82e1-d08afde50922",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=As the Digital Agronomist, finalize the plan for this farm cycle:\n\nCROP CONTEXT: \n- Type: {{ $json.crop.type }} at {{ $json.crop.growth_stage }} stage.\n\nENVIRONMENTAL STATUS:\n- Soil Moisture: {{ $json.sensors.soil_moisture }}%\n- Current Temp: {{ $json.sensors.temperature }}°C\n- Weather Summary: {{ $json.weather }}\n\nSYSTEM CONTEXT:\n- Mode: {{ $json.meta.mode }}\n- Preliminary Actuator Plan: Pump is {{ $json.actuators.pump.physical_state }}, Fan is {{ $json.actuators.fan.physical_state }}.\n\nThink step-by-step: Is the current plan optimal? Does the weather summary warrant a shift in timing or a total cancellation? Adjust the values and provide the final output string.",
+        "options": {
+          "systemMessage": "Role: Senior Digital Agronomist for the SAHLA Box System.\nMission: Optimize crop health while balancing resource conservation.\n\nPART 1: THE ABSOLUTE LAW OF TIME (CRITICAL STRICT RULES)\nYou will be provided with the Current Time (e.g., 14:00). You are bound by linear time.\n\nNo Time Travel: You CANNOT schedule an action for a time that has already passed today. If the Current Time is 14:00, scheduling an execute_until or execute_at for 12:00 is strictly forbidden.\n\nTimer Math: If you turn a device ON (timer.active:true), the execute_until time MUST be the Current Time plus the duration_minutes in the future.\n\nDelay Math: If you DELAY a device (delay.active:true), the execute_at time MUST be a future hour (e.g., if it is 14:00, delay until 17:00 or 19:00).\n\nNo Delay Fallback: If a device is NOT delayed (delay.active:false), its execute_at value MUST be set to the exact numerical Current Time (e.g., 14:00). NEVER write \"current time\".\n\nPART 2: AGRONOMIC FRAMEWORK (YOUR FREEDOM)\n\nCrop Vitality: Prioritize the needs of the specific crop type and its growth stage.\n\nContextual Weather Awareness: If weather events (like rain) happened earlier in the day, ignore them. Only base decisions on future weather.\n\nResource Efficiency: You have the authority to cancel or delay operations based on your agronomic intuition (e.g., if soil moisture is good and heat is low, you can save water).\n\nSTRICT OUTPUT FORMAT:\nYou must output a single line of space-separated key:value pairs:\npump.physical_state:<val> pump.timer.active:<val> pump.timer.duration_minutes:<val> pump.timer.execute_until:<val> pump.delay.active:<val> pump.delay.execute_at:<val> fan.physical_state:<val> fan.timer.active:<val> fan.timer.duration_minutes:<val> fan.timer.execute_until:<val> fan.delay.active:<val> fan.delay.execute_at:<val>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4150a1b7-cd85-4697-a4f9-ee2ed24e71b5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-3.5-turbo",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        208,
+        176
+      ],
+      "id": "2f753732-7bf7-48aa-aa0c-11cf0edf75b8",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qflZz90019dRQ26x",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Setup Data & Time Context\nconst finalJson = $('When Executed by Another Workflow').first().json;\nconst aiRawOutput = $input.first().json.output;\nconst currentTimeStr = finalJson.sensors.time_of_day; // e.g., \"14:00\"\n\n// 2. Extract AI Output safely (handles conversational text before \"Output:\")\nlet dataString = aiRawOutput;\nif (aiRawOutput.includes(\"Output:\")) {\n  const splits = aiRawOutput.split(\"Output:\");\n  dataString = splits[splits.length - 1].trim(); \n}\n\n// 3. Parse Key-Value Pairs\nconst pairs = dataString.split(/\\s+/); // Splits by any space or newline\n\npairs.forEach(pair => {\n  // Find the FIRST colon only. This prevents splitting \"14:00\" into \"14\" and \"00\"\n  const colonIndex = pair.indexOf(\":\");\n  if (colonIndex === -1) return; \n  \n  const keyPath = pair.substring(0, colonIndex); // e.g., \"pump.timer.execute_until\"\n  const value = pair.substring(colonIndex + 1);  // e.g., \"14:10\", \"true\", or \"10\"\n  \n  const parts = keyPath.split(\".\");\n  let finalValue = value;\n  \n  // Type Conversion\n  if (value === \"true\") finalValue = true;\n  else if (value === \"false\") finalValue = false;\n  else if (value === \"null\") finalValue = null;\n  else if (!isNaN(value) && value !== \"\") finalValue = Number(value); // Converts purely numeric strings\n\n  // Safely inject into JSON structure\n  if (parts.length === 3 && finalJson.actuators[parts[0]] && finalJson.actuators[parts[0]][parts[1]]) {\n    finalJson.actuators[parts[0]][parts[1]][parts[2]] = finalValue;\n  }\n  if (parts.length === 2 && finalJson.actuators[parts[0]]) {\n    finalJson.actuators[parts[0]][parts[1]] = finalValue;\n  }\n});\n\n// 4. Time Math Verification Helpers\nconst timeToMins = (timeStr) => {\n  if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return -1;\n  const [h, m] = timeStr.split(':').map(Number);\n  return (h * 60) + m;\n};\n\nconst minsToTime = (mins) => {\n  const h = Math.floor(mins / 60) % 24;\n  const m = mins % 60;\n  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;\n};\n\nconst currentMins = timeToMins(currentTimeStr);\n\n// 5. Verify, Correct, and Classify Actuators\n['pump', 'fan'].forEach(device => {\n  const act = finalJson.actuators[device];\n  \n  // --- A. VALIDATE DELAY (execute_at) ---\n  if (act.delay.active === false) {\n    // If not delayed, it MUST execute right now. Overwrite AI if wrong.\n    if (act.delay.execute_at !== currentTimeStr) {\n      act.delay.execute_at = currentTimeStr; \n    }\n  } else {\n    // If delayed, verify the AI didn't pick a time in the past (time travel) or use null\n    const delayMins = timeToMins(act.delay.execute_at);\n    if (delayMins <= currentMins || delayMins === -1) {\n      // Correct it by pushing it 60 minutes into the future dynamically\n      act.delay.execute_at = minsToTime(currentMins + 60); \n    }\n  }\n\n  // --- B. VALIDATE TIMER (execute_until) ---\n  if (act.timer.active === true) {\n    // Calculate mathematically what the end time SHOULD be\n    const startMins = timeToMins(act.delay.execute_at);\n    const expectedEndStr = minsToTime(startMins + act.timer.duration_minutes);\n    \n    // If the AI's math is wrong (or null), overwrite it with the true calculated time\n    if (act.timer.execute_until !== expectedEndStr) {\n      act.timer.execute_until = expectedEndStr; \n    }\n  } else {\n    // Clean up data if timer is inactive\n    act.timer.execute_until = null;\n    act.timer.duration_minutes = 0;\n  }\n\n  // --- C. APPLY CLASSIFICATION ---\n  if (act.physical_state === \"on\") {\n    act.classification = \"WORKING\";\n  } else if (act.physical_state === \"off\" && act.delay.active === true) {\n    act.classification = \"PENDING\";\n  } else {\n    act.classification = \"FREE\";\n  }\n});\n\n// 6. Output the perfectly formatted JSON\nreturn [{ json: finalJson }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "defcdb9d-da19-48a1-af7b-c512586d0107",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "meta": {
+            "run_id": "a3f9c1-7d2e4b",
+            "triggered_at": "2025-06-01T14:00:00",
+            "mode": "growth_priority"
+          },
+          "location": {
+            "latitude": 36.75,
+            "longitude": 3.05,
+            "timezone": "Africa/Algiers"
+          },
+          "crop": {
+            "type": "tomato",
+            "growth_stage": "flowering"
+          },
+          "sensors": {
+            "soil_moisture": 28,
+            "temperature": 31.5,
+            "air_humidity": 68,
+            "luminosity": 7100,
+            "time_of_day": "14:00"
+          },
+          "actuators": {
+            "pump": {
+              "entity_id": null,
+              "physical_state": "on",
+              "classification": "",
+              "skipped": false,
+              "manual_override": false,
+              "timer": {
+                "active": true,
+                "duration_minutes": 10,
+                "execute_until": "14:10"
+              },
+              "delay": {
+                "active": false,
+                "execute_at": null
+              }
+            },
+            "fan": {
+              "entity_id": null,
+              "physical_state": "on",
+              "classification": "",
+              "skipped": "false",
+              "manual_override": false,
+              "timer": {
+                "active": true,
+                "duration_minutes": 5,
+                "execute_until": "14:05"
+              },
+              "delay": {
+                "active": false,
+                "execute_at": null
+              }
+            }
+          },
+          "weather": "In the next 6 hours, there is a slight chance of rain with a precipitation probability reaching 8% at 12:00 PM today. The peak temperature for today is 22°C, while tomorrow is forecasted to reach 22°C as well. No heatwave alert is indicated as temperatures do not exceed 35°C within the next 48 hours.",
+          "history": null,
+          "extra": {
+            "recommendations": [],
+            "warnings": []
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "dae7c7f9-4bfc-4412-ba42-3bf2d18503fc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a24db0cf1df907f1ed13a32c1a27ce3caeab54aacf2cab3cd091ef5400bdb440"
+  },
+  "id": "mpyP_cLIVH9JF_pwPIKR0",
+  "tags": []
+}

@@ -1,0 +1,214 @@
+{
+  "name": "Preliminary_decisions",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "256cd5f8-fa53-4c47-ad86-2e24eaf17429",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6a8ed8dd-7725-4fe7-a1cd-813d6b8e138d",
+              "name": "actuators.pump.skipped",
+              "value": "={{ $json.actuators.pump.physical_state ===\"on\" || $json.actuators.pump.manual_override }}",
+              "type": "boolean"
+            },
+            {
+              "id": "f8435a3e-8b33-445d-8a27-8f72110823ec",
+              "name": "actuators.fan.skipped",
+              "value": "={{ $json.actuators.fan.physical_state===\"on\" || $json.actuators.fan.manual_override }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "c7b16ad7-aec4-4c49-906f-58a14db7595d",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "23f37b27-0879-4527-8740-8bbe0e021f32",
+              "leftValue": "={{ !$json.actuators.pump.skipped || !$json.actuators.fan.skipped }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        496,
+        0
+      ],
+      "id": "512c7a4b-2e85-4b86-8036-5bc70810c342",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the SAHLA Box environment and output the state for ALL actuators.\n\nENVIRONMENTAL CONTEXT:\n- Mode: {{ $json.meta.mode }}\n- Crop: {{ $json.crop.type }} ({{ $json.crop.growth_stage }} stage)\n- Current Time: {{ $json.sensors.time_of_day }}\n- Soil Moisture: {{ $json.sensors.soil_moisture }}%\n- Temperature: {{ $json.sensors.temperature }}°C\n- Air Humidity: {{ $json.sensors.air_humidity }}%\n- Luminosity: {{ $json.sensors.luminosity }} lux\n\nACTUATORS CURRENT STATE:\n[PUMP]\n- Skipped: {{ $json.actuators.pump.skipped }}\n- Current physical_state: {{ $json.actuators.pump.physical_state }}\n- Current timer.active: {{ $json.actuators.pump.timer.active }}\n- Current timer.duration_minutes: {{ $json.actuators.pump.timer.duration_minutes }}\n\n[FAN]\n- Skipped: {{ $json.actuators.fan.skipped }}\n- Current physical_state: {{ $json.actuators.fan.physical_state }}\n- Current timer.active: {{ $json.actuators.fan.timer.active }}\n- Current timer.duration_minutes: {{ $json.actuators.fan.timer.duration_minutes }}\n\nINSTRUCTIONS:\n1. You MUST output the state for BOTH the pump and the fan in a single line.\n2. If an actuator has \"Skipped: true\", DO NOT change its values. Exactly copy its \"Current\" values to your output.\n3. If an actuator has \"Skipped: false\", calculate its NEW values based on the environment and Mode.\n4. Calculate 'timer.execute_until' (HH:MM format) by adding 'timer.duration_minutes' to the Current Time ({{ $json.sensors.time_of_day }}). If duration is null, execute_until is null.\n5. Output EXACTLY following the structure below. Do not add any conversational text.\n\nOUTPUT FORMAT:\npump.physical_state:<value> pump.timer.active:<value> pump.timer.duration_minutes:<value> pump.timer.execute_until:<value> fan.physical_state:<value> fan.timer.active:<value> fan.timer.duration_minutes:<value> fan.timer.execute_until:<value>\n\nOUTPUT:",
+        "options": {
+          "systemMessage": "You are the core AI decision-making agent for the \"SAHLA Box\" smart agriculture system. Your role is to analyze environmental data, crop specific configurations, and weather forecasts to control greenhouse actuators.\n\nYou must adapt your decisions based on the active Operational Priority Mode:\n\ngrowth_priority: Maximize plant health and yield.\n\nenergy_saver: Minimize electricity usage. Shift high-load tasks to cooler hours.\n\nwater_saver: Minimize irrigation duration.\n\nbalanced: Optimize trade-off between plant health and resource conservation.\n\nSTRICT OUTPUT RULES:\nYou MUST output the state for EVERY actuator listed (pump AND fan), even if they are skipped.\nYou MUST output a single line of space-separated strings using EXACTLY this format:\npump.physical_state:value pump.timer.active:value pump.timer.duration_minutes:value pump.timer.execute_until:value fan.physical_state:value fan.timer.active:value fan.timer.duration_minutes:value fan.timer.execute_until:value"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        736,
+        0
+      ],
+      "id": "e2b8483b-8e21-4570-8972-ba9eaac790b1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "openai/gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "openai/gpt-3.5-turbo"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        736,
+        208
+      ],
+      "id": "b850775e-4286-45f1-b688-698ccbec98ed",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "eb8A4DEZ5mKHKcef",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalData = $('Filter').first().json; \nlet updatedData = JSON.parse(JSON.stringify(originalData));\nconst aiOutput = $input.first().json.output;\n\nif (aiOutput) {\n  const pairs = aiOutput.trim().split(/\\s+/);\n\n  for (let pair of pairs) {\n    const colonIndex = pair.indexOf(':');\n    if (colonIndex === -1) continue; \n    const path = pair.substring(0, colonIndex);\n    let value = pair.substring(colonIndex + 1);\n\n    if (value === 'true') {\n        value = true;\n    } else if (value === 'false') {\n        value = false;\n    } else if (value === 'null') {\n        value = null;\n    } else if (!isNaN(value) && value.trim() !== '') {\n        value = Number(value); \n    }\n\n    const keys = path.split('.');\n    let currentLevel = updatedData.actuators;\n\n    for (let i = 0; i < keys.length - 1; i++) {\n      if (currentLevel[keys[i]] === undefined) {\n         currentLevel[keys[i]] = {}; \n      }\n      currentLevel = currentLevel[keys[i]];\n    }\n    \n    currentLevel[keys[keys.length - 1]] = value;\n  }\n}\n\nreturn [{ json: updatedData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "0692b36f-ab5c-4fc0-a32f-afee3aff2493",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "50c27619-c971-4468-89ba-03c99b00f53a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a24db0cf1df907f1ed13a32c1a27ce3caeab54aacf2cab3cd091ef5400bdb440"
+  },
+  "id": "0sKMcOI_SiAj3PC77_uKH",
+  "tags": []
+}

@@ -1,0 +1,114 @@
+{
+  "name": "Send Data",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url_request }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n        \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkNWE1ZDVjMzQyNTE0MzE4YjI0MTI1NjZiOTNlOWEzNiIsImlhdCI6MTc3MTkzMDY5MCwiZXhwIjoyMDg3MjkwNjkwfQ.obmGhZBspOzi-72YyCCsca-qiL8w5sNgPnHnJJmZL94\",\n        \"Content-Type\": \"application/json\"\n      }",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"state\": \"{{ $json.value }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        256,
+        -48
+      ],
+      "id": "395f2881-2703-4e07-b802-d2679575d9f6",
+      "name": "HTTP Request",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -256,
+        -48
+      ],
+      "id": "3fdc2c61-c70b-4312-b9cd-2c330909a961",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const Items = items.map(i => i.json);\nconst jsonData = Items[0];\n\nconst actuators = jsonData.actuators;\n\nlet entitiesToUpdate = [];\n\n// Converts HH:MM or HH:MM:SS to full datetime with today's date\nfunction combineDateTime(timeStr) {\n    if (!timeStr) return null;\n\n    // If it's already a full ISO datetime, just return it\n    if (timeStr.includes(\"T\") || timeStr.includes(\"-\")) {\n        return timeStr;\n    }\n\n    // Get today's date in YYYY-MM-DD\n    const today = new Date().toISOString().split(\"T\")[0];\n\n    // Add seconds if missing\n    const timeWithSeconds = timeStr.length === 5 ? `${timeStr}:00` : timeStr;\n\n    return `${today} ${timeWithSeconds}`;\n}\n\nfor (const [name, actuator] of Object.entries(actuators)) {\n    if (actuator.skipped) continue;\n\n    if (actuator.delay.active) {\n        entitiesToUpdate.push({\n            entity_id: `input_datetime.${name}_excecute_at`,\n            value: combineDateTime(actuator.delay.execute_at)\n        });\n        continue;\n    }\n\n    if (actuator.timer.active) {\n        // State update\n        entitiesToUpdate.push({\n            entity_id: `input_boolean.${name}_physical_state`,\n            value: \"on\"\n        });\n        // Timer end\n        entitiesToUpdate.push({\n            entity_id: `input_datetime.${name}_excecute_until`,\n            value: combineDateTime(actuator.timer.execute_until)\n        });\n    }\n}\n\n// ✅ n8n expects: return array of objects\nreturn entitiesToUpdate.length ? entitiesToUpdate.map(e => ({ json: e })) : [{ json: {} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -48
+      ],
+      "id": "78901cd9-ea8a-44fa-bfb2-a3b698ee3621",
+      "name": "Extract actions"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all incoming items\nconst Items = items.map(i => i.json);\n\n// Base Home Assistant URL\nconst baseUrl = \"http://10.86.179.72:8123/api/states/\";\n\n// Map through items and add url_request only if entity_id exists\nlet updatedItems = Items\n  .filter(i => i.entity_id) // skip items with null/undefined entity_id\n  .map(i => ({\n    ...i,\n    url_request: `${baseUrl}${i.entity_id}`\n  }));\n\n// If array is empty, return empty array so HTTP Request node won't execute\nif (updatedItems.length === 0) {\n  return [];\n}\n\n// Wrap each item in { json: ... } as n8n expects\nreturn updatedItems.map(i => ({ json: i }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -48
+      ],
+      "id": "e8329c52-5a41-49b8-9bf9-a7a66a875c1a",
+      "name": "Add URL request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Extract actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract actions": {
+      "main": [
+        [
+          {
+            "node": "Add URL request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add URL request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e20b4322-5608-4fc8-bdb0-aa66396ecd49",
+  "meta": {
+    "instanceId": "8e5c8fd21874688ce1f848826b25f0ce0d6a0069a8639656b15e2fd79d0bd983"
+  },
+  "id": "U6h4Kpyz7UcpJgAG",
+  "tags": []
+}
