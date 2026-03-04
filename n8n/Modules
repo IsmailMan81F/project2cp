@@ -1,0 +1,126 @@
+================================================================
+   SMART AGRICULTURE WORKFLOW — MODULE SUMMARY
+================================================================
+
+
+----------------------------------------------------------------
+LAYER 0 — ENTRY & GUARD
+----------------------------------------------------------------
+
+[ 0A — Cron Trigger ]
+  Input    : Schedule (every X min)
+  Function : Pulls all sensor readings and helper states from HA
+  Output   : Raw sensor data + actuator states + user settings
+  
+[ 0B— Payload Builder ]
+  Input    : Raw HA data 
+  Function : Assembles the unified Context Payload JSON (the shared data bus)
+             that all downstream modules read from and write into
+  Output   : Structured Context Payload (JSON file)
+
+[ 0C — State Classifier ]
+  Input    : Context Payload (including : Timer state + delay state + manual override flags per actuator)
+  Function : Classifies each actuator into one of 5 states:
+             FREE / PENDING / EXCECUTING (on the timer duration) / FREE
+             Exits the workflow if nothing needs to be done
+  Output   : Flag with the boolean SKIP (true/false) for each actuator according to state
+
+
+----------------------------------------------------------------
+LAYER 1 — DATA ENRICHMENT
+----------------------------------------------------------------
+
+[ 1A — Weather Fetcher ]
+  Input    : Farm GPS coordinates
+  Function : Calls Open-Meteo API to get 48h hourly weather forecast
+  Output   : payload.weather — rain probability, precipitation, temperature per hour
+
+[ 1B — History Loader ]
+  Input    : External database or Google Sheet (written by module 5C)
+  Function : Reads last 7 days of run logs and computes averages and trends
+  Output   : payload.history — avg water consumption, avg sensor values, anomaly flags
+
+
+----------------------------------------------------------------
+LAYER 2 — AI AGENTS
+  ( 2A → 2B run sequentially / 2C runs in parallel )
+----------------------------------------------------------------
+
+[ 2A — Actuator Decision Agent ]
+  Input    : Sensors + crop type + growth stage + mode + free actuators 
+  Function : Decides ON or OFF for each free actuator based on
+             crop needs, sensor thresholds, and selected priority mode
+  Output   : decisions.states — {e.g. pump: true, ventilator: false}
+
+[ 2B — Duration Agent ]
+  Input    : decisions.states from 2A + sensors + crop context
+  Function : For each actuator set to ON, calculates how many minutes it should run
+  Output   : decisions.durations — {e.g. pump: 12min, ventilator: 25min }
+
+[ 2C — Weather Optimizer Agent ]
+  Input    : payload.weather + sensors + crop context + current time
+  Function : Decides per actuator whether to act NOW or DELAY
+             and suggests duration overrides if needed (e.g. +15% for heat wave)
+  Output   : decisions.optimizer — { verdict: delay|proceed, delay_duration, reason, override }
+
+
+----------------------------------------------------------------
+LAYER 3 — DECISION MERGER & VALIDATION  (no AI — pure code)
+----------------------------------------------------------------
+
+[ 3B — Merge & Final Decision Logic ]
+  Input    : decisions.states + decisions.durations + decisions.optimizer
+  Function : Waits for both parallel paths to finish then combines them, in which :
+  	     Per actuator: if DELAY → store decision with execute_at timestamp
+             if PROCEED + override → apply modifier to duration
+             if PROCEED → pass through unchanged
+  Output   : Single unified decisions object (main JSON file) with states + durations + optimizer verdict
+
+
+----------------------------------------------------------------
+LAYER 4 — WARNING & RECOMMENDATION ENGINE
+----------------------------------------------------------------
+
+[ 4A — Rule-Based Warnings ]
+  Input    : Sensors + payload.history + final decisions 
+  Function : Evaluates fixed threshold rules to detect problems
+             (e.g. high humidity + vent OFF = fungal risk, consumption +20% = leak)
+  Output   : warnings[ ] — array of { level, message, type }
+
+[ 4B — AI Recommendation Agent ]
+  Input    : payload.history + agent reasoning summaries + warnings[ ]
+  Function : Generates human-readable agronomic advice based on trends
+             Does not control anything — informational only. Optional module.
+  Output   : recommendations[ ] — array of advice strings for dashboard display
+
+
+----------------------------------------------------------------
+LAYER 5 — EXECUTION & STATE WRITE-BACK
+----------------------------------------------------------------
+
+[ 5A — Actuator Commander ]
+  Input    : States list including all the actuators (state, delay_pending, timer..) + manual override & SKIP flags
+  Function : Sends the physical ON/OFF commands to HA via REST API
+             Skips any actuator with manual override enabled
+  Output   : HA switch commands (turn_on / turn_off) + execution log
+
+[ 5B — State Writer ]
+  Input    : Executed actuators + pending decisions + warnings + recommendations
+  Function : Writes all state changes back to HA helpers so they persist
+             between N8N runs (running flags, timers, pending decisions, dashboard text)
+  Output   : HA input helpers updated — timers, delays, dashboard display fields
+
+[ 5C — History Logger ]
+  Input    : Full Context Payload + execution log from 5A
+  Function : Appends a complete snapshot of this run to the external database
+             This data feeds module 1B on future runs
+  Output   : One new log row — timestamp + sensors + decisions + warnings
+
+[ 5D — Notification Dispatcher ]
+  Input    : warnings[ ] + recommendations[ ]
+  Function : If warnings array is non-empty, formats and sends a notification to HA
+             Critical warnings also trigger a mobile push notification (optional)
+  Output   : HA persistent_notification + optional mobile push alert
+
+
+================================================================
